@@ -29,9 +29,9 @@ public enum SimulationMode: Int {
 /**
  A navigation service coordinates various nonvisual components that track the user as they navigate along a predetermined route. You use `MapboxNavigationService`, which conforms to this protocol, either as part of `NavigationViewController` or by itself as part of a custom user interface. A navigation service calls methods on its `delegate`, which conforms to the `NavigationServiceDelegate` protocol, whenever significant events or decision points occur along the route.
  
- A navigation service controls a `NavigationLocationManager` for determining the user’s location, a `Router` that tracks the user’s progress along the route, a `Directions` service for calculating new routes (only used when rerouting), and a `NavigationEventsManager` for sending telemetry events related to navigation or user feedback.
+ A navigation service controls a `NavigationLocationManager` for determining the user’s location, a `Router` that tracks the user’s progress along the route, a `NavigationRouter` service for calculating new routes (only used when rerouting), and a `NavigationEventsManager` for sending telemetry events related to navigation or user feedback.
  
- `NavigationViewController` comes with a `MapboxNavigationService` by default. You may override it to customize the `Directions` service or simulation mode. After creating the navigation service, pass it into `NavigationOptions(styles:navigationService:voiceController:topBanner:bottomBanner:)`, then pass that object into `NavigationViewController(for:options:)`.
+ `NavigationViewController` comes with a `MapboxNavigationService` by default. You may override it to customize the `NavigationRouter`'s source or simulation mode. After creating the navigation service, pass it into `NavigationOptions(styles:navigationService:voiceController:topBanner:bottomBanner:)`, then pass that object into `NavigationViewController(for:options:)`.
  
  If you use a navigation service by itself, outside of `NavigationViewController`, call `start()` when the user is ready to begin navigating along the route.
  */
@@ -42,9 +42,14 @@ public protocol NavigationService: CLLocationManagerDelegate, RouterDataSource, 
     var locationManager: NavigationLocationManager { get }
     
     /**
-     A reference to a MapboxDirections service. Used for rerouting.
+     Routing source type used to create the route.
      */
-    var directions: Directions { get }
+    var routingSource: NavigationRouter.RouterSource { get }
+    
+    /**
+     Credentials data, used to authorize server requests.
+     */
+    var credentials: DirectionsCredentials { get }
     
     /**
      The router object that tracks the user’s progress as they travel along a predetermined route.
@@ -272,7 +277,7 @@ public class MapboxNavigationService: NSObject, NavigationService {
      - parameter routeOptions: The route options used to get the route.
      */
     convenience init(routeResponse: RouteResponse, routeIndex: Int, routeOptions options: RouteOptions) {
-        self.init(routeResponse: routeResponse, routeIndex: routeIndex, routeOptions: options, directions: nil, locationSource: nil, eventsManagerType: nil)
+        self.init(routeResponse: routeResponse, routeIndex: routeIndex, routeOptions: options, locationSource: nil, eventsManagerType: nil)
     }
     
     /**
@@ -281,7 +286,8 @@ public class MapboxNavigationService: NSObject, NavigationService {
      - parameter routeResponse: `RouteResponse` object, containing selection of routes to follow.
      - parameter routeIndex: The index of the route within the original `RouteResponse` object.
      - parameter routeOptions: The route options used to get the route.
-     - parameter directions: The Directions object that created `route`. If this argument is omitted, the shared value of `NavigationSettings.directions` will be used.
+     - parameter routingSource: `NavigationRouter` source type, used to create route.
+     - parameter credentials: Credentials to authorize additional data requests throughout the route. If this argument is omitted, the shared value of `NavigationSettings.directions` will be used.
      - parameter locationSource: An optional override for the default `NaviationLocationManager`.
      - parameter eventsManagerType: An optional events manager type to use while tracking the route.
      - parameter simulationMode: The simulation mode desired.
@@ -290,13 +296,15 @@ public class MapboxNavigationService: NSObject, NavigationService {
     required public init(routeResponse: RouteResponse,
                          routeIndex: Int,
                          routeOptions: RouteOptions,
-                         directions: Directions? = nil,
+                         routingSource: NavigationRouter.RouterSource = .hybrid,
+                         credentials: DirectionsCredentials = NavigationSettings.shared.directions.credentials,
                          locationSource: NavigationLocationManager? = nil,
                          eventsManagerType: NavigationEventsManager.Type? = nil,
                          simulating simulationMode: SimulationMode = .onPoorGPS,
                          routerType: Router.Type? = nil) {
         nativeLocationSource = locationSource ?? NavigationLocationManager()
-        self.directions = directions ?? NavigationSettings.shared.directions
+        self.routingSource = routingSource
+        self.credentials = credentials
         self.simulationMode = simulationMode
         super.init()
         resumeNotifications()
@@ -307,12 +315,16 @@ public class MapboxNavigationService: NSObject, NavigationService {
         }
         
         let routerType = routerType ?? DefaultRouter.self
-        _router = routerType.init(alongRouteAtIndex: routeIndex, in: routeResponse, options: routeOptions, directions: self.directions, dataSource: self)
+        _router = routerType.init(alongRouteAtIndex: routeIndex,
+                                  in: routeResponse,
+                                  options: routeOptions,
+                                  routingSource: routingSource,
+                                  dataSource: self)
         NavigationSettings.shared.distanceUnit = routeOptions.locale.usesMetric ? .kilometer : .mile
         
         let eventType = eventsManagerType ?? NavigationEventsManager.self
         _eventsManager = eventType.init(activeNavigationDataSource: self,
-                                        accessToken: self.directions.credentials.accessToken)
+                                        accessToken: self.credentials.accessToken)
         locationManager.activityType = routeOptions.activityType
         bootstrapEvents()
         
@@ -367,12 +379,16 @@ public class MapboxNavigationService: NSObject, NavigationService {
      The active location simulator. Only used during `SimulationOption.always` and `SimluatedLocationManager.onPoorGPS`. If there is no simulation active, this property is `nil`.
      */
     private var simulatedLocationSource: SimulatedLocationManager?
+
+    /**
+     Routing source type used to create the route.
+     */
+    public var routingSource: NavigationRouter.RouterSource
     
     /**
-     A reference to a MapboxDirections service. Used for rerouting.
+     Credentials data, used to authorize server requests.
      */
-    public var directions: Directions
-
+    public var credentials: DirectionsCredentials
     
     // MARK: Managing Route-Related Data
     

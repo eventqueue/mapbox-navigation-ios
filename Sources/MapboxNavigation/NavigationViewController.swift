@@ -31,7 +31,7 @@ public typealias ContainerViewController = UIViewController & NavigationComponen
  */
 open class NavigationViewController: UIViewController, NavigationStatusPresenter, NavigationViewData {
     /**
-     A `RouteResponse` object constructed by [MapboxDirections](https://docs.mapbox.com/ios/api/directions/) along with route index in it.
+     A `RouteResponse` object constructed by [MapboxDirections](https://docs.mapbox.com/ios/api/directions/) or MapboxCoreNavigation `NavigationRouter.requestRoutes(options:completionHandler:)` along with route index in it.
      
      In cases where you need to update the route after navigation has started, you can set a new route using
      `Router.updateRoute(with:routeOptions:)` method in `NavigationViewController.navigationService.router` and
@@ -56,7 +56,7 @@ open class NavigationViewController: UIViewController, NavigationStatusPresenter
     var _routeOptions: RouteOptions?
     
     /**
-     A `Route` object constructed by [MapboxDirections](https://docs.mapbox.com/ios/api/directions/).
+     A `Route` object constructed by [MapboxDirections](https://docs.mapbox.com/ios/api/directions/) or MapboxCoreNavigation `NavigationRouter.requestRoutes(options:completionHandler:)`.
      */
     public var route: Route? {
         navigationService.route
@@ -70,7 +70,7 @@ open class NavigationViewController: UIViewController, NavigationStatusPresenter
     }
     
     /**
-     Current `RouteResponse` object, as provided by [MapboxDirections](https://docs.mapbox.com/ios/api/directions/).
+     Current `RouteResponse` object, as provided by [MapboxDirections](https://docs.mapbox.com/ios/api/directions/) or MapboxCoreNavigation `NavigationRouter.requestRoutes(options:completionHandler:)`.
      */
     public var routeResponse: RouteResponse {
         indexedRouteResponse.routeResponse
@@ -87,13 +87,6 @@ open class NavigationViewController: UIViewController, NavigationStatusPresenter
      The `NavigationOptions` object, which is used for the navigation session.
      */
     public var navigationOptions: NavigationOptions?
-    
-    /**
-     An instance of `Directions` need for rerouting. See [Mapbox Directions](https://docs.mapbox.com/ios/api/directions/) for further information.
-     */
-    public var directions: Directions {
-        return navigationService.directions
-    }
     
     /**
      The receiver’s delegate.
@@ -359,7 +352,7 @@ open class NavigationViewController: UIViewController, NavigationStatusPresenter
     /**
      Initializes a `NavigationViewController` that presents the user interface for following a predefined route based on the given options.
 
-     The route may come directly from the completion handler of the [MapboxDirections](https://docs.mapbox.com/ios/api/directions/) framework’s `Directions.calculate(_:completionHandler:)` method, or it may be unarchived or created from a JSON object.
+     The route may come directly from the completion handler of the [MapboxDirections](https://docs.mapbox.com/ios/api/directions/) framework’s `Directions.calculate(_:completionHandler:)` method, MapboxCoreNavigation `NavigationRouter.requestRoutes(options:completionHandler:)`, or it may be unarchived or created from a JSON object.
      
      - parameter routeResponse: `RouteResponse` object, containing selection of routes to follow.
      - parameter routeIndex: The index of the route within the original `RouteResponse` object.
@@ -460,7 +453,7 @@ open class NavigationViewController: UIViewController, NavigationStatusPresenter
     }
     
     func setupVoiceController() {
-        let credentials = navigationService.directions.credentials
+        let credentials = navigationService.credentials
         voiceController = navigationOptions?.voiceController
             ?? RouteVoiceController(navigationService: navigationService,
                                     accessToken: credentials.accessToken,
