@@ -4,7 +4,7 @@ import MapboxNavigationNative
 protocol CacheHandlerData {
     var tileStorePath: String { get }
     var credentials: DirectionsCredentials { get }
-    var tilesVersion: String? { get }
+    var tilesVersion: String { get }
     var historyDirectoryURL: URL? { get }
     var targetVersion: String? { get }
     var configFactoryType: ConfigFactory.Type { get }
@@ -17,7 +17,7 @@ enum CacheHandlerFactory {
     private struct CacheKey: CacheHandlerData {
         let tileStorePath: String
         let credentials: DirectionsCredentials
-        let tilesVersion: String?
+        let tilesVersion: String
         let historyDirectoryURL: URL?
         let targetVersion: String?
         let configFactoryType: ConfigFactory.Type
@@ -31,12 +31,21 @@ enum CacheHandlerFactory {
             self.configFactoryType = data.configFactoryType
         }
         
+        private static func optionalsAreNotEqual<T: Comparable>(_ lhs: T?, _ rhs: T?) -> Bool{
+            if let firstVal = lhs, let secondVal = rhs {
+                return firstVal != secondVal
+            }
+            else {
+                return lhs != nil || rhs != nil
+           }
+        }
+        
         static func != (lhs: CacheKey, rhs: CacheHandlerData) -> Bool {
             return lhs.tileStorePath != rhs.tileStorePath ||
                 lhs.credentials != rhs.credentials ||
-                lhs.tilesVersion != rhs.tilesVersion ||
-                lhs.historyDirectoryURL != rhs.historyDirectoryURL ||
-                lhs.targetVersion != rhs.targetVersion ||
+                optionalsAreNotEqual(lhs.tilesVersion, rhs.tilesVersion) ||
+                optionalsAreNotEqual(lhs.historyDirectoryURL?.absoluteString, rhs.historyDirectoryURL?.absoluteString) ||
+                optionalsAreNotEqual(lhs.targetVersion, rhs.targetVersion) ||
                 lhs.configFactoryType != rhs.configFactoryType
         }
     }

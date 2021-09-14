@@ -121,25 +121,11 @@ class RouteControllerTests: TestCase {
         }
         
         NavigationRouter.__testRoutesStub = { (options, completionHandler) in
+            DispatchQueue.main.async {
+                completionHandler(Directions.Session(options, .mocked),
+                                  .success(routeResponse))
+            }
             calculateRouteCalled.fulfill()
-            let currentCoordinate = locationManager.location!.coordinate
-            
-            let originWaypoint = Waypoint(coordinate: currentCoordinate)
-            let destinationWaypoint = Waypoint(coordinate: destination)
-            
-            let waypoints = [
-                originWaypoint,
-                destinationWaypoint
-            ]
-            
-            completionHandler(Directions.Session(options, DirectionsCredentials()),
-                              .success(RouteResponse(httpResponse: nil,
-                                                     identifier: nil,
-                                                     routes: [Fixture.route(between: currentCoordinate,
-                                                                            and: destination).route],
-                                                     waypoints: waypoints,
-                                                     options: .route(options),
-                                                     credentials: .mocked)))
             return 0
         }
 

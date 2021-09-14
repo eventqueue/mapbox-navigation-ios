@@ -182,6 +182,7 @@
 * Removed the `NavigationViewController.origin` property. ([#2808](https://github.com/mapbox/mapbox-navigation-ios/pull/2808))
 * Fixed a potential memory leak when using `MultiplexedSpeechSynthesizer`. ([#3005](https://github.com/mapbox/mapbox-navigation-ios/pull/3005))
 * Fixed a thread-safety issue in `UnimplementedLogging` protocol implementation. ([#3024](https://github.com/mapbox/mapbox-navigation-ios/pull/3024))
+* Replaced `Directions.calculateWithCache(options:completionHandler:)` and `Directions.calculateOffline(options:completionHandler)` functionality with `NavigationRouter`. It is now recommended to use `NavigationRouter` to request or refresh routes instead of `Directions` object. ([#3261](https://github.com/mapbox/mapbox-navigation-ios/pull/3261))
 * Fixed an issue where `UIApplication.shared.isIdleTimerDisabled` was not properly set in some cases. ([#3245](https://github.com/mapbox/mapbox-navigation-ios/pull/3245))
 
 ## v1.4.1

@@ -33,7 +33,7 @@ public class NavigationRouter {
          Cancels the request if it is still active.
          */
         public func cancel() {
-            router.finish(request: id)
+            router.router.cancelRequest(forToken: id)
         }
     }
     
@@ -208,19 +208,15 @@ public class NavigationRouter {
     
     // MARK: - Private methods
     
-    fileprivate func finish(request id: RequestId) {
-        requestsLock.lock(); defer {
-            requestsLock.unlock()
-        }
-        
-        router.cancelRequest(forToken: id)
-        activeRequests[id] = nil
-    }
-    
     fileprivate func complete(requestId: RequestId, with result: @escaping () -> Void) {
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [self] in
             result()
-            self.finish(request: requestId)
+            
+            requestsLock.lock(); defer {
+                requestsLock.unlock()
+            }
+            
+            activeRequests[requestId] = nil
         }
     }
 
@@ -286,7 +282,7 @@ public class NavigationRouter {
     
     fileprivate func doRequest<ResponseType: Codable>(options: DirectionsOptions,
                                                       completion: @escaping (Result<ResponseType, DirectionsError>) -> Void) -> RequestId {
-        let directionsUri = settings.directions.url(forCalculating: options).absoluteString
+        let directionsUri = settings.directions.url(forCalculating: options).removingSKU().absoluteString
         var requestId: RequestId!
         requestsLock.lock()
         requestId = router.getRouteForDirectionsUri(directionsUri) { [weak self] (result, _) in
@@ -307,6 +303,28 @@ public class NavigationRouter {
 
 extension DirectionsProfileIdentifier {
     var nativeProfile: RoutingProfile {
-        return RoutingProfile(profile: rawValue)
+        var mode: RoutingMode
+        switch self {
+        case .automobile:
+            mode = .driving
+        case .automobileAvoidingTraffic:
+            mode = .drivingTraffic
+        case .cycling:
+            mode = .cycling
+        case .walking:
+            mode = .walking
+        default:
+            mode = .driving
+        }
+        return RoutingProfile(mode: mode, account: "mapbox")
+    }
+}
+
+extension URL {
+    func removingSKU() -> URL {
+        var urlComponents = URLComponents(string: self.absoluteString)!
+        let filteredItems = urlComponents.queryItems?.filter { $0.name != "sku" }
+        urlComponents.queryItems = filteredItems
+        return urlComponents.url!
     }
 }

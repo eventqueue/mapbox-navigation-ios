@@ -14,14 +14,14 @@ class NativeHandlersFactory {
     
     let tileStorePath: String
     let credentials: DirectionsCredentials
-    let tilesVersion: String?
+    let tilesVersion: String
     let historyDirectoryURL: URL?
     let targetVersion: String?
     let configFactoryType: ConfigFactory.Type
     
     init(tileStorePath: String,
          credentials: DirectionsCredentials,
-         tilesVersion: String? = nil,
+         tilesVersion: String = "",
          historyDirectoryURL: URL? = nil,
          targetVersion: String? = nil,
          configFactoryType: ConfigFactory.Type = ConfigFactory.self) {
@@ -71,7 +71,7 @@ class NativeHandlersFactory {
     
     lazy var endpointConfig: TileEndpointConfiguration = {
         TileEndpointConfiguration(credentials: credentials,
-                                  tilesVersion: tilesVersion ?? "",
+                                  tilesVersion: tilesVersion,
                                   minimumDaysToPersistVersion: nil,
                                   targetVersion: targetVersion)
     }()
