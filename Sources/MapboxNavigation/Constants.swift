@@ -45,6 +45,11 @@ public let NavigationViewMinimumVolumeForWarning: Float = 0.3
  */
 public var GradientCongestionFadingDistance: CLLocationDistance = 30.0
 
+/**
+ The maximum distance threshold of vanishing route line update. When the user's location to the route line is larger than the  threshold, the route line won't be updated.
+ */
+public var routeLineUpdateMaxDistanceThreshold: CLLocationDistance = 5.0
+
 extension Notification.Name {
     /**
      Posted when `StyleManager` applies a style that was triggered by change of time of day, or when entering or exiting a tunnel.

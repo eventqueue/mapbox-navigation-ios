@@ -68,16 +68,16 @@ extension NavigationMapView {
          Add to the count of remaining points all of the remaining points on the current leg, after the current step.
          */
         let currentLegSteps = completeRoutePoints.nestedList[routeProgress.legIndex]
-        let startIndex = currentLegProgress.stepIndex + 1
-        let endIndex = currentLegSteps.count - 1
-        if startIndex < endIndex {
-            allRemainingPoints += currentLegSteps.prefix(endIndex).suffix(from: startIndex).flatMap{ $0.compactMap{ $0 } }.count
+        if currentLegProgress.stepIndex < currentLegSteps.endIndex {
+            allRemainingPoints += currentLegSteps.suffix(from: currentLegProgress.stepIndex + 1).dropLast().flatMap{ $0.compactMap{ $0 } }.count
         }
         
         /**
          Add to the count of remaining points all of the remaining legs.
          */
-        for index in stride(from: routeProgress.legIndex + 1, to: completeRoutePoints.nestedList.count, by: 1) {
+        let startIndex = routeProgress.legIndex + 1
+        let endIndex = completeRoutePoints.nestedList.endIndex
+        for index in startIndex..<endIndex {
             allRemainingPoints += completeRoutePoints.nestedList[index].flatMap{ $0 }.count
         }
         
@@ -95,10 +95,10 @@ extension NavigationMapView {
         /**
          Implement the Turf.lineSliceAlong(lineString, startDistance, stopDistance) to return a sliced lineString.
          */
-        if let lineString = currentStepProgress.step.shape,
-           let midPoint = lineString.coordinateFromStart(distance: startDistance),
+        let lineString = currentStepProgress.step.shape ?? LineString([])
+        if let midPoint = lineString.coordinateFromStart(distance: startDistance),
            let slicedLine = lineString.trimmed(from: midPoint, distance: stopDistance - startDistance) {
-            return slicedLine.coordinates.count - 1
+            return slicedLine.coordinates.dropLast().count
         }
          
         return 0
@@ -118,16 +118,45 @@ extension NavigationMapView {
         return RouteLineGranularDistances(distance: distance, distanceArray: indexArray.compactMap{ $0 })
     }
     
+    func findDistanceToNearestPointOnCurrentLine(coordinate: CLLocationCoordinate2D, granularDistances: RouteLineGranularDistances, upcomingIndex: Int) -> CLLocationDistance {
+        guard upcomingIndex < granularDistances.distanceArray.endIndex else { return 0.0 }
+        
+        let startIndex = max(0, upcomingIndex - 10)
+        let endIndex = min(upcomingIndex, granularDistances.distanceArray.endIndex - 1)
+        var coordinates = [CLLocationCoordinate2D]()
+        for index in startIndex...endIndex  {
+            let point = granularDistances.distanceArray[index].point
+            coordinates.append(point)
+        }
+        
+        let polyline = LineString(coordinates)
+        
+        if let closestCoordinateOnRoute = polyline.closestCoordinate(to: coordinate)?.coordinate {
+            return coordinate.distance(to: closestCoordinateOnRoute)
+        } else {
+            return 0.0
+        }
+
+    }
+    
     /**
      Updates the fractionTraveled along the route line from the origin point to the indicated point.
      
      - parameter coordinate: Current position of the user location.
      */
     func updateFractionTraveled(coordinate: CLLocationCoordinate2D) {
-        guard let granularDistances = routeLineGranularDistances,let index = routeRemainingDistancesIndex else { return }
-        guard index < granularDistances.distanceArray.endIndex else { return }
+        guard let granularDistances = routeLineGranularDistances,
+              let index = routeRemainingDistancesIndex,
+              index < granularDistances.distanceArray.endIndex else { return }
         let traveledIndex = granularDistances.distanceArray[index]
         let upcomingPoint = traveledIndex.point
+        
+        if index > 0 {
+            let distanceToLine = findDistanceToNearestPointOnCurrentLine(coordinate: coordinate, granularDistances: granularDistances, upcomingIndex: index)
+            if distanceToLine > routeLineUpdateMaxDistanceThreshold {
+                return
+            }
+        }
         
         /**
          Take the remaining distance from the upcoming point on the route and extends it by the exact position of the puck.
