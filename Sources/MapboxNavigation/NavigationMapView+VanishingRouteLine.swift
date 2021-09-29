@@ -35,15 +35,20 @@ extension NavigationMapView {
      */
     func parseRoutePoints(route: Route) -> RoutePoints {
         let nestedList = route.legs.map { (routeLeg: RouteLeg) -> [[CLLocationCoordinate2D]] in
-            return routeLeg.steps.map { (routeStep: RouteStep) -> [CLLocationCoordinate2D] in
+            var legCoordinates = [[CLLocationCoordinate2D]]()
+            let endIndex = routeLeg.steps.count - 1
+            for (index, routeStep) in routeLeg.steps.enumerated() {
                 if let routeShape = routeStep.shape {
-                    if !routeShape.coordinates.isEmpty {
-                        return routeShape.coordinates
-                    } else { return [] }
+                    if index != endIndex {
+                        legCoordinates.append(routeShape.coordinates)
+                    } else if let finalStep = routeShape.coordinates.first {
+                        legCoordinates.append([finalStep])
+                    }
                 } else {
-                    return []
+                    legCoordinates.append([])
                 }
             }
+            return legCoordinates
         }
         let flatList = nestedList.flatMap { $0.flatMap { $0.compactMap { $0 } } }
         return RoutePoints(nestedList: nestedList, flatList: flatList)
@@ -62,7 +67,7 @@ extension NavigationMapView {
         /**
          Find the count of remaining points in the current step.
          */
-        var allRemainingPoints = getSlicedLinePointsCount(currentLegProgress: currentLegProgress, currentStepProgress: currentStepProgress)
+        var allRemainingPoints = getSlicedLinePointsCount(currentStepProgress: currentStepProgress)
         
         /**
          Add to the count of remaining points all of the remaining points on the current leg, after the current step.
@@ -88,7 +93,7 @@ extension NavigationMapView {
         routeRemainingDistancesIndex = allPoints - allRemainingPoints - 1
     }
     
-    func getSlicedLinePointsCount(currentLegProgress: RouteLegProgress, currentStepProgress: RouteStepProgress) -> Int {
+    func getSlicedLinePointsCount(currentStepProgress: RouteStepProgress) -> Int {
         let startDistance = currentStepProgress.distanceTraveled
         let stopDistance = currentStepProgress.step.distance
         
