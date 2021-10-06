@@ -349,6 +349,7 @@ open class CarPlayNavigationViewController: UIViewController {
         updateManeuvers(navigationService.routeProgress)
         navigationService.start()
         currentLegIndexMapped = navigationService.router.routeProgress.legIndex
+        navigationMapView?.simulatesLocation = navigationService.locationManager.simulatesLocation
         
         updateTripEstimateStyle(traitCollection.userInterfaceStyle)
     }
@@ -419,6 +420,11 @@ open class CarPlayNavigationViewController: UIViewController {
                                                selector: #selector(visualInstructionDidChange(_:)),
                                                name: .routeControllerDidPassVisualInstructionPoint,
                                                object: service.router)
+        
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(simulatingDidChange(_:)),
+                                               name: .navigationServiceSimulatingDidChange,
+                                               object: service)
     }
     
     func suspendNotifications() {
@@ -436,6 +442,10 @@ open class CarPlayNavigationViewController: UIViewController {
         
         NotificationCenter.default.removeObserver(self,
                                                   name: .routeControllerDidPassVisualInstructionPoint,
+                                                  object: nil)
+        
+        NotificationCenter.default.removeObserver(self,
+                                                  name: .navigationServiceSimulatingDidChange,
                                                   object: nil)
     }
     
@@ -514,6 +524,21 @@ open class CarPlayNavigationViewController: UIViewController {
         if routeLineTracksTraversal {
             navigationMapView?.updateUpcomingRoutePointIndex(routeProgress: progress)
             navigationMapView?.travelAlongRouteLine(to: coordinate)
+        }
+    }
+    
+    @objc func simulatingDidChange(_ notification: NSNotification) {
+        guard let simulatingUpdate = notification.userInfo?[MapboxNavigationService.NotificationUserInfoKey.simulatingUpdateKey] as? SimulatingUpdate else { return }
+        
+        switch simulatingUpdate {
+        case .willBeginSimulating:
+            navigationMapView?.simulatesLocation = true
+        case .didBeginSimulating:
+            let simulatedLocationProvider = NavigationLocationProvider(locationManager: SimulatedLocationManager(routeProgress: navigationService.routeProgress))
+            navigationMapView?.mapView.location.overrideLocationProvider(with: simulatedLocationProvider)
+        case .willEndSimulating:
+            navigationMapView?.simulatesLocation = false
+        case .didEndSimulating: break
         }
     }
     

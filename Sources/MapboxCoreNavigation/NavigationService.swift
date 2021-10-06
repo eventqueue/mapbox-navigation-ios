@@ -2,8 +2,34 @@ import UIKit
 import CoreLocation
 import MapboxDirections
 
-public enum SimulationIntent: Int{
+public enum SimulationIntent: Int {
     case manual, poorGPS
+}
+
+/**
+ The simulating update type. Used for notifying users of the begin and end of navigation service simulating status.
+ */
+public enum SimulatingUpdate: Int{
+    
+    /**
+     The navigation service will begin simulating.
+     */
+    case willBeginSimulating
+    
+    /**
+     The navigation service did begin simulating.
+     */
+    case didBeginSimulating
+    
+    /**
+     The navigation service will end simulating.
+     */
+    case willEndSimulating
+    
+    /**
+     The navigation service did end simulating.
+     */
+    case didEndSimulating
 }
 
 /**
@@ -182,26 +208,45 @@ public class MapboxNavigationService: NSObject, NavigationService {
     private var _simulationSpeedMultiplier: Double = 1.0
     
     private func simulate(intent: SimulationIntent = .manual) {
-        guard !isSimulating else { return }
         let progress = router.routeProgress
         delegate?.navigationService(self, willBeginSimulating: progress, becauseOf: intent)
+        announceSimulatingDidChange(simulatingUpdate: .willBeginSimulating)
+        guard !isSimulating else {
+            announceSimulatingDidChange(simulatingUpdate: .didBeginSimulating)
+            return
+        }
+        
         simulatedLocationSource = SimulatedLocationManager(routeProgress: progress)
         simulatedLocationSource?.delegate = self
         simulatedLocationSource?.speedMultiplier = _simulationSpeedMultiplier
         simulatedLocationSource?.startUpdatingLocation()
         simulatedLocationSource?.startUpdatingHeading()
         delegate?.navigationService(self, didBeginSimulating: progress, becauseOf: intent)
+        announceSimulatingDidChange(simulatingUpdate: .didBeginSimulating)
     }
     
     private func endSimulation(intent: SimulationIntent = .manual) {
-        guard isSimulating else { return }
         let progress = router.routeProgress
         delegate?.navigationService(self, willEndSimulating: progress, becauseOf: intent)
+        announceSimulatingDidChange(simulatingUpdate: .willEndSimulating)
+        guard isSimulating else {
+            announceSimulatingDidChange(simulatingUpdate: .didEndSimulating)
+            return
+        }
+        
         simulatedLocationSource?.stopUpdatingLocation()
         simulatedLocationSource?.stopUpdatingHeading()
         simulatedLocationSource?.delegate = nil
         simulatedLocationSource = nil
         delegate?.navigationService(self, didEndSimulating: progress, becauseOf: intent)
+        announceSimulatingDidChange(simulatingUpdate: .didEndSimulating)
+    }
+
+    private func announceSimulatingDidChange(simulatingUpdate: SimulatingUpdate) {
+        let userInfo: [NotificationUserInfoKey: Any] = [
+            NotificationUserInfoKey.simulatingUpdateKey: simulatingUpdate
+        ]
+        NotificationCenter.default.post(name: .navigationServiceSimulatingDidChange, object: self, userInfo: userInfo)
     }
     
     private func resetGPSCountdown() {
