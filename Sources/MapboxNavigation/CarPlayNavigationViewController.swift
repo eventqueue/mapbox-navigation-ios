@@ -528,18 +528,30 @@ open class CarPlayNavigationViewController: UIViewController {
     }
     
     @objc func simulatingDidChange(_ notification: NSNotification) {
-        guard let simulatingUpdate = notification.userInfo?[MapboxNavigationService.NotificationUserInfoKey.simulatingUpdateKey] as? SimulatingUpdate else { return }
+        guard let simulatingUpdate = notification.userInfo?[MapboxNavigationService.NotificationUserInfoKey.simulatingUpdateKey] as? SimulatingUpdate,
+              let simulatedSpeedMultiplier = notification.userInfo?[MapboxNavigationService.NotificationUserInfoKey.simulatedSpeedMultiplierKey] as? Double
+              else { return }
         
         switch simulatingUpdate {
         case .willBeginSimulating:
             navigationMapView?.simulatesLocation = true
         case .didBeginSimulating:
-            let simulatedLocationProvider = NavigationLocationProvider(locationManager: SimulatedLocationManager(routeProgress: navigationService.routeProgress))
-            navigationMapView?.mapView.location.overrideLocationProvider(with: simulatedLocationProvider)
+            setUpSimulatedLocationProvider(routeProgress: navigationService.routeProgress, speedMultiplier: simulatedSpeedMultiplier)
+        case .inSimulating:
+            navigationMapView?.simulatesLocation = true
+            setUpSimulatedLocationProvider(routeProgress: navigationService.routeProgress, speedMultiplier: simulatedSpeedMultiplier)
         case .willEndSimulating:
             navigationMapView?.simulatesLocation = false
         case .didEndSimulating: break
+        case .notInSimulating:
+            navigationMapView?.simulatesLocation = false
         }
+    }
+    
+    func setUpSimulatedLocationProvider(routeProgress: RouteProgress, speedMultiplier: Double) {
+        let simulatedLocationManager = SimulatedLocationManager(routeProgress: routeProgress)
+        simulatedLocationManager.speedMultiplier = speedMultiplier
+        navigationMapView?.mapView.location.overrideLocationProvider(with: NavigationLocationProvider(locationManager: simulatedLocationManager))
     }
     
     func updateRouteOnMap() {
