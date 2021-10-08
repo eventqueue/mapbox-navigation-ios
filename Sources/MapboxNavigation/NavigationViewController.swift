@@ -653,6 +653,12 @@ open class NavigationViewController: UIViewController, NavigationStatusPresenter
         }
     }
     
+    func setUpSimulatedLocationProvider() {
+        let simulatedLocationManager = SimulatedLocationManager(routeProgress: navigationService.routeProgress)
+        simulatedLocationManager.speedMultiplier = navigationService.simulationSpeedMultiplier
+        navigationMapView?.mapView.location.overrideLocationProvider(with: NavigationLocationProvider(locationManager: simulatedLocationManager))
+    }
+    
     // MARK: - Containerization methods
     
     func embed(_ child: UIViewController, in container: UIView, constrainedBy constraints: ((NavigationViewController, UIViewController) -> [NSLayoutConstraint])?) {
@@ -877,8 +883,7 @@ extension NavigationViewController: NavigationServiceDelegate {
         for component in navigationComponents {
             component.navigationService(service, didBeginSimulating: progress, becauseOf: reason)
         }
-        let simulatedLocationProvider = NavigationLocationProvider(locationManager: SimulatedLocationManager(routeProgress: progress))
-        navigationMapView?.mapView.location.overrideLocationProvider(with: simulatedLocationProvider)
+        setUpSimulatedLocationProvider()
     }
     
     public func navigationService(_ service: NavigationService, willEndSimulating progress: RouteProgress, becauseOf reason: SimulationIntent) {
@@ -1021,6 +1026,7 @@ extension NavigationViewController {
         statusView.showSimulationStatus(speed: displayValue)
 
         navigationService.simulationSpeedMultiplier = Double(displayValue)
+        setUpSimulatedLocationProvider()
     }
 }
 

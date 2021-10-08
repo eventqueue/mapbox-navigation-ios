@@ -538,13 +538,17 @@ open class CarPlayNavigationViewController: UIViewController {
         case .didBeginSimulating:
             setUpSimulatedLocationProvider(routeProgress: navigationService.routeProgress, speedMultiplier: simulatedSpeedMultiplier)
         case .inSimulating:
-            navigationMapView?.simulatesLocation = true
+            if let simulatesLocation = navigationMapView?.simulatesLocation, !simulatesLocation {
+                navigationMapView?.simulatesLocation = true
+            }
             setUpSimulatedLocationProvider(routeProgress: navigationService.routeProgress, speedMultiplier: simulatedSpeedMultiplier)
         case .willEndSimulating:
             navigationMapView?.simulatesLocation = false
         case .didEndSimulating: break
         case .notInSimulating:
-            navigationMapView?.simulatesLocation = false
+            if let simulatesLocation = navigationMapView?.simulatesLocation, simulatesLocation {
+                navigationMapView?.simulatesLocation = false
+            }
         }
     }
     
