@@ -19,11 +19,7 @@ public extension CourseUpdatable {
         let duration: TimeInterval = animated ? 1 : 0
         UIView.animate(withDuration: duration, delay: 0, options: [.beginFromCurrentState, .curveLinear], animations: {
             let angle = CGFloat(CLLocationDegrees(direction - location.course).toRadians())
-            if let self = self as? UserPuckCourseView {
-                self.puckView.layer.setAffineTransform(CGAffineTransform.identity.rotated(by: -angle))
-            } else if !(self is UserHaloCourseView) {
-                self.layer.setAffineTransform(CGAffineTransform.identity.rotated(by: -angle))
-            }
+            self.layer.setAffineTransform(CGAffineTransform.identity.rotated(by: -angle))
             
             // `UserCourseView` pitch is changed only during transition to the overview mode.
             let pitch = CGFloat(navigationCameraState == .transitionToOverview ? 0.0 : CLLocationDegrees(pitch).toRadians())
@@ -83,7 +79,7 @@ open class UserPuckCourseView: UIView, CourseUpdatable {
         }
     }
     
-    var puckView: UserPuckStyleKitView!
+    public private(set) var puckView: UserPuckStyleKitView!
     
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -134,9 +130,33 @@ open class UserPuckCourseView: UIView, CourseUpdatable {
     @objc func locationDidUpdate(_ notification: NSNotification) {
         lastLocationUpdate = Date()
     }
+    
+    // MARK: - CourseUpdatable methods
+    
+    /**
+     Transforms the location of the user location indicator layer.
+     */
+    open func update(location: CLLocation, pitch: CGFloat, direction: CLLocationDegrees, animated: Bool, navigationCameraState: NavigationCameraState) {
+        let duration: TimeInterval = animated ? 1 : 0
+        UIView.animate(withDuration: duration, delay: 0, options: [.beginFromCurrentState, .curveLinear], animations: {
+            let angle = CGFloat(CLLocationDegrees(direction - location.course).toRadians())
+            self.puckView.layer.setAffineTransform(CGAffineTransform.identity.rotated(by: -angle))
+            
+            // `UserCourseView` pitch is changed only during transition to the overview mode.
+            let pitch = CGFloat(navigationCameraState == .transitionToOverview ? 0.0 : CLLocationDegrees(pitch).toRadians())
+            var transform = CATransform3DRotate(CATransform3DIdentity, pitch, 1.0, 0, 0)
+            
+            let isCameraFollowing = navigationCameraState == .following
+            let scale = CGFloat(isCameraFollowing ? 1.0 : 0.5)
+            transform = CATransform3DScale(transform, scale, scale, 1)
+            transform.m34 = -1.0 / 1000 // (-1 / distance to projection plane)
+            self.layer.sublayerTransform = transform
+        }, completion: nil)
+    }
+
 }
 
-class UserPuckStyleKitView: UIView {
+public class UserPuckStyleKitView: UIView {
     private typealias ColorComponents = (hue: CGFloat, saturation: CGFloat, brightness: CGFloat, alpha: CGFloat)
     
     var fillColor: UIColor = UIColor(red: 1.000, green: 1.000, blue: 1.000, alpha: 1.000) {
@@ -192,7 +212,7 @@ class UserPuckStyleKitView: UIView {
                        alpha: puckColorComponents.alpha + (stalePuckColorComponents.alpha - puckColorComponents.alpha) * staleRatio)
     }
     
-    override func draw(_ rect: CGRect) {
+    public override func draw(_ rect: CGRect) {
         super.draw(rect)
         drawNavigationPuck(fillColor: fillColor, puckColor: drawingPuckColor(), shadowColor: shadowColor, circleColor: fillColor)
     }
