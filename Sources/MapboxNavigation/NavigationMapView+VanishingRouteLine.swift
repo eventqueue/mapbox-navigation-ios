@@ -35,15 +35,20 @@ extension NavigationMapView {
      */
     func parseRoutePoints(route: Route) -> RoutePoints {
         let nestedList = route.legs.map { (routeLeg: RouteLeg) -> [[CLLocationCoordinate2D]] in
-            return routeLeg.steps.map { (routeStep: RouteStep) -> [CLLocationCoordinate2D] in
+            var legCoordinates = [[CLLocationCoordinate2D]]()
+            let endIndex = routeLeg.steps.count - 1
+            for (index, routeStep) in routeLeg.steps.enumerated() {
                 if let routeShape = routeStep.shape {
-                    if !routeShape.coordinates.isEmpty {
-                        return routeShape.coordinates
-                    } else { return [] }
+                    if index != endIndex {
+                        legCoordinates.append(routeShape.coordinates)
+                    } else if let finalStep = routeShape.coordinates.first {
+                        legCoordinates.append([finalStep])
+                    }
                 } else {
-                    return []
+                    legCoordinates.append([])
                 }
             }
+            return legCoordinates
         }
         let flatList = nestedList.flatMap { $0.flatMap { $0.compactMap { $0 } } }
         return RoutePoints(nestedList: nestedList, flatList: flatList)
@@ -62,22 +67,22 @@ extension NavigationMapView {
         /**
          Find the count of remaining points in the current step.
          */
-        var allRemainingPoints = getSlicedLinePointsCount(currentLegProgress: currentLegProgress, currentStepProgress: currentStepProgress)
+        var allRemainingPoints = getSlicedLinePointsCount(currentStepProgress: currentStepProgress)
         
         /**
          Add to the count of remaining points all of the remaining points on the current leg, after the current step.
          */
         let currentLegSteps = completeRoutePoints.nestedList[routeProgress.legIndex]
-        let startIndex = currentLegProgress.stepIndex + 1
-        let endIndex = currentLegSteps.count - 1
-        if startIndex < endIndex {
-            allRemainingPoints += currentLegSteps.prefix(endIndex).suffix(from: startIndex).flatMap{ $0.compactMap{ $0 } }.count
+        if currentLegProgress.stepIndex < currentLegSteps.endIndex {
+            allRemainingPoints += currentLegSteps.suffix(from: currentLegProgress.stepIndex + 1).dropLast().flatMap{ $0.compactMap{ $0 } }.count
         }
         
         /**
          Add to the count of remaining points all of the remaining legs.
          */
-        for index in stride(from: routeProgress.legIndex + 1, to: completeRoutePoints.nestedList.count, by: 1) {
+        let startIndex = routeProgress.legIndex + 1
+        let endIndex = completeRoutePoints.nestedList.endIndex
+        for index in startIndex..<endIndex {
             allRemainingPoints += completeRoutePoints.nestedList[index].flatMap{ $0 }.count
         }
         
@@ -85,20 +90,20 @@ extension NavigationMapView {
          After calculating the number of remaining points and the number of all points,  calculate the index of the upcoming point.
          */
         let allPoints = completeRoutePoints.flatList.count
-        routeRemainingDistancesIndex = allPoints - allRemainingPoints - 1
+        routeRemainingDistancesIndex = allPoints - allRemainingPoints
     }
     
-    func getSlicedLinePointsCount(currentLegProgress: RouteLegProgress, currentStepProgress: RouteStepProgress) -> Int {
+    func getSlicedLinePointsCount(currentStepProgress: RouteStepProgress) -> Int {
         let startDistance = currentStepProgress.distanceTraveled
         let stopDistance = currentStepProgress.step.distance
         
         /**
          Implement the Turf.lineSliceAlong(lineString, startDistance, stopDistance) to return a sliced lineString.
          */
-        if let lineString = currentStepProgress.step.shape,
-           let midPoint = lineString.coordinateFromStart(distance: startDistance),
+        let lineString = currentStepProgress.step.shape ?? LineString([])
+        if let midPoint = lineString.coordinateFromStart(distance: startDistance),
            let slicedLine = lineString.trimmed(from: midPoint, distance: stopDistance - startDistance) {
-            return slicedLine.coordinates.count - 1
+            return slicedLine.coordinates.dropLast().count
         }
          
         return 0
@@ -124,8 +129,9 @@ extension NavigationMapView {
      - parameter coordinate: Current position of the user location.
      */
     func updateFractionTraveled(coordinate: CLLocationCoordinate2D) {
-        guard let granularDistances = routeLineGranularDistances,let index = routeRemainingDistancesIndex else { return }
-        guard index < granularDistances.distanceArray.endIndex else { return }
+        guard let granularDistances = routeLineGranularDistances,
+              let index = routeRemainingDistancesIndex,
+              index < granularDistances.distanceArray.endIndex else { return }
         let traveledIndex = granularDistances.distanceArray[index]
         let upcomingPoint = traveledIndex.point
         
