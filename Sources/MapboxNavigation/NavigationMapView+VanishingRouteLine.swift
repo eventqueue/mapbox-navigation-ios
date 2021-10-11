@@ -90,7 +90,7 @@ extension NavigationMapView {
          After calculating the number of remaining points and the number of all points,  calculate the index of the upcoming point.
          */
         let allPoints = completeRoutePoints.flatList.count
-        routeRemainingDistancesIndex = allPoints - allRemainingPoints - 1
+        routeRemainingDistancesIndex = allPoints - allRemainingPoints
     }
     
     func getSlicedLinePointsCount(currentStepProgress: RouteStepProgress) -> Int {
