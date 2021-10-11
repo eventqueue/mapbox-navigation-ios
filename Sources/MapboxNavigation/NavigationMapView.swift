@@ -209,16 +209,7 @@ open class NavigationMapView: UIView {
     }
     
     var locationProvider: LocationProvider?
-    var simulatesLocation: Bool = true {
-        didSet {
-            if simulatesLocation {
-                storeLocationProvider()
-            } else {
-                let locationProvider = self.locationProvider ?? AppleLocationProvider()
-                self.mapView.location.overrideLocationProvider(with: locationProvider)
-            }
-        }
-    }
+    var simulatesLocation: Bool = true
     
     /**
      A manager object, used to init and maintain predictive caching.
@@ -351,7 +342,7 @@ open class NavigationMapView: UIView {
         mapView = MapView(frame: frame, mapInitOptions: mapInitOptions)
         mapView.translatesAutoresizingMaskIntoConstraints = false
         mapView.ornaments.options.scaleBar.visibility = .hidden
-        storeLocationProvider()
+        storeLocationProviderBeforeSimulating()
         
         mapView.mapboxMap.onEvery(.renderFrameFinished) { [weak self] _ in
             guard let self = self,
@@ -393,10 +384,17 @@ open class NavigationMapView: UIView {
         navigationCamera.follow()
     }
     
-    func storeLocationProvider() {
+    func storeLocationProviderBeforeSimulating() {
+        simulatesLocation = true
         locationProvider = mapView.location.locationProvider
         locationProvider?.stopUpdatingLocation()
         locationProvider?.stopUpdatingHeading()
+    }
+    
+    func useStoredLocationProvider() {
+        simulatesLocation = false
+        let locationProvider = self.locationProvider ?? AppleLocationProvider()
+        mapView.location.overrideLocationProvider(with: locationProvider)
     }
     
     func updateUserCourseViewWithAccuracy() {

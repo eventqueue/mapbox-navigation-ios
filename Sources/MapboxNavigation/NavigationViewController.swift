@@ -876,7 +876,7 @@ extension NavigationViewController: NavigationServiceDelegate {
         for component in navigationComponents {
             component.navigationService(service, willBeginSimulating: progress, becauseOf: reason)
         }
-        navigationMapView?.simulatesLocation = true
+        navigationMapView?.storeLocationProviderBeforeSimulating()
     }
     
     public func navigationService(_ service: NavigationService, didBeginSimulating progress: RouteProgress, becauseOf reason: SimulationIntent) {
@@ -890,7 +890,7 @@ extension NavigationViewController: NavigationServiceDelegate {
         for component in navigationComponents {
             component.navigationService(service, willEndSimulating: progress, becauseOf: reason)
         }
-        navigationMapView?.simulatesLocation = false
+        navigationMapView?.useStoredLocationProvider()
     }
     
     public func navigationService(_ service: NavigationService, didEndSimulating progress: RouteProgress, becauseOf reason: SimulationIntent) {

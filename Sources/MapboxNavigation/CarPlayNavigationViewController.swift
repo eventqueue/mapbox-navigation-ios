@@ -534,20 +534,20 @@ open class CarPlayNavigationViewController: UIViewController {
         
         switch simulatingUpdate {
         case .willBeginSimulating:
-            navigationMapView?.simulatesLocation = true
+            navigationMapView?.storeLocationProviderBeforeSimulating()
         case .didBeginSimulating:
             setUpSimulatedLocationProvider(routeProgress: navigationService.routeProgress, speedMultiplier: simulatedSpeedMultiplier)
         case .inSimulating:
             if let simulatesLocation = navigationMapView?.simulatesLocation, !simulatesLocation {
-                navigationMapView?.simulatesLocation = true
+                navigationMapView?.storeLocationProviderBeforeSimulating()
             }
             setUpSimulatedLocationProvider(routeProgress: navigationService.routeProgress, speedMultiplier: simulatedSpeedMultiplier)
         case .willEndSimulating:
-            navigationMapView?.simulatesLocation = false
+            navigationMapView?.useStoredLocationProvider()
         case .didEndSimulating: break
         case .notInSimulating:
             if let simulatesLocation = navigationMapView?.simulatesLocation, simulatesLocation {
-                navigationMapView?.simulatesLocation = false
+                navigationMapView?.useStoredLocationProvider()
             }
         }
     }
