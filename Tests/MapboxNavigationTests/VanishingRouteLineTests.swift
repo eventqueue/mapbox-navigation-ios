@@ -36,6 +36,14 @@ class VanishingRouteLineTests: TestCase {
         return route
     }
     
+    func getRouteProgress() -> RouteProgress {
+        let route = getRoute()
+        let routeProgress = RouteProgress(route: route, options: routeOptions, legIndex: 0, spokenInstructionIndex: 0)
+        routeProgress.currentLegProgress = RouteLegProgress(leg: route.legs[0], stepIndex: 2, spokenInstructionIndex: 0)
+        routeProgress.currentLegProgress.currentStepProgress = RouteStepProgress(step: route.legs[0].steps[2], spokenInstructionIndex: 0)
+        return routeProgress
+    }
+    
     func testParseRoutePoints() {
         let routeData = Fixture.JSONFromFileNamed(name: "multileg_route")
         let routeOptions = NavigationRouteOptions(coordinates: [
@@ -68,9 +76,7 @@ class VanishingRouteLineTests: TestCase {
         navigationMapView.routeLineGranularDistances = nil
         XCTAssertEqual(navigationMapView.fractionTraveled, 0.0)
         
-        let routeProgress = RouteProgress(route: route, options: routeOptions, legIndex: 0, spokenInstructionIndex: 0)
-        routeProgress.currentLegProgress = RouteLegProgress(leg: route.legs[0], stepIndex: 2, spokenInstructionIndex: 0)
-        routeProgress.currentLegProgress.currentStepProgress = RouteStepProgress(step: route.legs[0].steps[2], spokenInstructionIndex: 0)
+        let routeProgress = getRouteProgress()
         
         navigationMapView.updateUpcomingRoutePointIndex(routeProgress: routeProgress)
         
@@ -78,10 +84,7 @@ class VanishingRouteLineTests: TestCase {
     }
     
     func testUpdateUpcomingRoutePointIndexWhenPrimaryRoutePointsIsNill() {
-        let route = getRoute()
-        let routeProgress = RouteProgress(route: route, options: routeOptions, legIndex: 0, spokenInstructionIndex: 0)
-        routeProgress.currentLegProgress = RouteLegProgress(leg: route.legs[0], stepIndex: 2, spokenInstructionIndex: 0)
-        routeProgress.currentLegProgress.currentStepProgress = RouteStepProgress(step: route.legs[0].steps[2], spokenInstructionIndex: 0)
+        let routeProgress = getRouteProgress()
         
         navigationMapView.updateUpcomingRoutePointIndex(routeProgress: routeProgress)
         XCTAssertNil(navigationMapView.routeRemainingDistancesIndex)
@@ -89,9 +92,7 @@ class VanishingRouteLineTests: TestCase {
     
     func testUpdateFractionTraveled() {
         let route = getRoute()
-        let routeProgress = RouteProgress(route: route, options: routeOptions, legIndex: 0, spokenInstructionIndex: 0)
-        routeProgress.currentLegProgress = RouteLegProgress(leg: route.legs[0], stepIndex: 2, spokenInstructionIndex: 0)
-        routeProgress.currentLegProgress.currentStepProgress = RouteStepProgress(step: route.legs[0].steps[2], spokenInstructionIndex: 0)
+        let routeProgress = getRouteProgress()
         
         let coordinate = route.shape!.coordinates[1]
         navigationMapView.routeLineTracksTraversal = true
@@ -100,6 +101,69 @@ class VanishingRouteLineTests: TestCase {
         navigationMapView.updateFractionTraveled(coordinate: coordinate)
         
         XCTAssertEqual(navigationMapView.fractionTraveled, 0.3240769449298392, accuracy: 0.0000000001)
+    }
+    
+    func testUpdateRouteLineWithDifferentDistance() {
+        let route = getRoute()
+        let routeProgress = getRouteProgress()
+        let coordinate = route.shape!.coordinates[1]
+        
+        navigationMapView.routes = [route]
+        navigationMapView.routeLineTracksTraversal = true
+        navigationMapView.show([route], legIndex: 0)
+        navigationMapView.updateUpcomingRoutePointIndex(routeProgress: routeProgress)
+        
+        let cameraState = navigationMapView.mapView.cameraState
+        let cameraOption = CameraOptions(center: cameraState.center, padding: cameraState.padding, zoom: 5, bearing: cameraState.bearing, pitch: cameraState.pitch)
+        navigationMapView.mapView.camera.ease(to: cameraOption, duration: 0.1, curve: .linear)
+        
+        expectation(description: "Zoom set up") {
+            self.navigationMapView.mapView.cameraState.zoom == 5
+        }
+        waitForExpectations(timeout: 2, handler: nil)
+        navigationMapView.travelAlongRouteLine(to: coordinate)
+        
+        XCTAssertTrue(navigationMapView.fractionTraveled == 0.0, "Failed to avoid updating route line when the distance is smaller than 1 pixel.")
+    }
+    
+    func testSwitchRouteLineTracksTraversalDuringNavigation() {
+        let route = getRoute()
+        let routeProgress = getRouteProgress()
+        let coordinate = route.shape!.coordinates[1]
+        
+        navigationMapView.routes = [route]
+        navigationMapView.routeLineTracksTraversal = true
+        navigationMapView.show([route], legIndex: 0)
+        navigationMapView.updateUpcomingRoutePointIndex(routeProgress: routeProgress)
+        
+        let cameraState = navigationMapView.mapView.cameraState
+        let cameraOption = CameraOptions(center: cameraState.center, padding: cameraState.padding, zoom: 16, bearing: cameraState.bearing, pitch: cameraState.pitch)
+        navigationMapView.mapView.camera.ease(to: cameraOption, duration: 0.1, curve: .linear)
+        
+        expectation(description: "Zoom set up") {
+            self.navigationMapView.mapView.cameraState.zoom == 16
+        }
+        waitForExpectations(timeout: 2, handler: nil)
+        navigationMapView.travelAlongRouteLine(to: coordinate)
+        XCTAssertEqual(navigationMapView.fractionTraveled, 0.32407694496826034, "Failed to update route line when routeLineTracksTraversal enabled.")
+        
+        let layerIdentifier = route.identifier(.route(isMainRoute: true))
+        do {
+            navigationMapView.routeLineTracksTraversal = false
+            var layer = try navigationMapView.mapView.mapboxMap.style.layer(withId: layerIdentifier) as LineLayer
+            var gradientExpression = layer.lineGradient.debugDescription
+            XCTAssertEqual(navigationMapView.fractionTraveled, 0.0)
+            XCTAssert(!gradientExpression.contains("0.32407694496826034"), "Failed to stop vanishing effect when routeLineTracksTraversal disabled.")
+            
+            navigationMapView.routeLineTracksTraversal = true
+            navigationMapView.updateUpcomingRoutePointIndex(routeProgress: routeProgress)
+            navigationMapView.travelAlongRouteLine(to: coordinate)
+            layer = try navigationMapView.mapView.mapboxMap.style.layer(withId: layerIdentifier) as LineLayer
+            gradientExpression = layer.lineGradient.debugDescription
+            XCTAssert(gradientExpression.contains("0.32407694496826034"), "Failed to restore vanishing effect when routeLineTracksTraversal enabled.")
+        } catch {
+            XCTFail(error.localizedDescription)
+        }
     }
     
 }
