@@ -81,6 +81,12 @@ open class UserPuckCourseView: UIView, CourseUpdatable {
     
     public private(set) var puckView: UserPuckStyleKitView!
     
+    /**
+     Gives the ability to minimize `UserPuckCourseView` when `NavigationCameraState` is not
+     in the `.following` mode.
+     */
+    public var minimizeWhenCameraIsNotFollowing: Bool = false
+    
     public override init(frame: CGRect) {
         super.init(frame: frame)
         commonInit()
@@ -138,7 +144,9 @@ open class UserPuckCourseView: UIView, CourseUpdatable {
      */
     open func update(location: CLLocation, pitch: CGFloat, direction: CLLocationDegrees, animated: Bool, navigationCameraState: NavigationCameraState) {
         let duration: TimeInterval = animated ? 1 : 0
-        UIView.animate(withDuration: duration, delay: 0, options: [.beginFromCurrentState, .curveLinear], animations: {
+        UIView.animate(withDuration: duration, delay: 0, options: [.beginFromCurrentState, .curveLinear], animations: { [weak self] in
+            guard let self = self else { return }
+            
             let angle = CGFloat(CLLocationDegrees(direction - location.course).toRadians())
             self.puckView.layer.setAffineTransform(CGAffineTransform.identity.rotated(by: -angle))
             
@@ -146,14 +154,16 @@ open class UserPuckCourseView: UIView, CourseUpdatable {
             let pitch = CGFloat(navigationCameraState == .transitionToOverview ? 0.0 : CLLocationDegrees(pitch).toRadians())
             var transform = CATransform3DRotate(CATransform3DIdentity, pitch, 1.0, 0, 0)
             
-            let isCameraFollowing = navigationCameraState == .following
-            let scale = CGFloat(isCameraFollowing ? 1.0 : 0.5)
-            transform = CATransform3DScale(transform, scale, scale, 1)
-            transform.m34 = -1.0 / 1000 // (-1 / distance to projection plane)
+            if self.minimizeWhenCameraIsNotFollowing {
+                let isCameraFollowing = navigationCameraState == .following
+                let scale = CGFloat(isCameraFollowing ? 1.0 : 0.5)
+                transform = CATransform3DScale(transform, scale, scale, 1)
+                transform.m34 = -1.0 / 1000 // (-1 / distance to projection plane)
+            }
+            
             self.layer.sublayerTransform = transform
         }, completion: nil)
     }
-
 }
 
 public class UserPuckStyleKitView: UIView {
