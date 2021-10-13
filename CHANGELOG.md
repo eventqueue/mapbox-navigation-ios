@@ -1,5 +1,10 @@
 # Changes to the Mapbox Navigation SDK for iOS
 
+## v2.1.0
+
+### Location tracking
+* Renamed `PassiveLocationManager`'s `lastRawLocation` to `rawLocation` and added `location` properties to expose latest cached raw and idealized locations respectively. ([#3474](https://github.com/mapbox/mapbox-navigation-ios/pull/3474))
+
 ## v2.0.0
 
 ### Packaging
