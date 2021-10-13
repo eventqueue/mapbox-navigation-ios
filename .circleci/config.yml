@@ -580,7 +580,13 @@ jobs:
     macos:
       xcode: "13.0.0"
     steps:
+      - run:
+          name: Check DNS
+          command: ssh -T git@github.com
       - checkout
+      - run:
+          name: Check DNS
+          command: dig @8.8.8.8 github.com +short
       - *prepare-netrc-file
       - *add-github-to-known-hosts
       - run:
