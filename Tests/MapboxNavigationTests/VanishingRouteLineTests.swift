@@ -44,6 +44,17 @@ class VanishingRouteLineTests: TestCase {
         return routeProgress
     }
     
+    func setUpCameraZoom(at zoomeLevel: CGFloat) {
+        let cameraState = navigationMapView.mapView.cameraState
+        let cameraOption = CameraOptions(center: cameraState.center, padding: cameraState.padding, zoom: zoomeLevel, bearing: cameraState.bearing, pitch: cameraState.pitch)
+        navigationMapView.mapView.camera.ease(to: cameraOption, duration: 0.1, curve: .linear)
+        
+        expectation(description: "Zoom set up") {
+            self.navigationMapView.mapView.cameraState.zoom == zoomeLevel
+        }
+        waitForExpectations(timeout: 2, handler: nil)
+    }
+    
     func testParseRoutePoints() {
         let routeData = Fixture.JSONFromFileNamed(name: "multileg_route")
         let routeOptions = NavigationRouteOptions(coordinates: [
@@ -112,15 +123,8 @@ class VanishingRouteLineTests: TestCase {
         navigationMapView.routeLineTracksTraversal = true
         navigationMapView.show([route], legIndex: 0)
         navigationMapView.updateUpcomingRoutePointIndex(routeProgress: routeProgress)
+        setUpCameraZoom(at: 5.0)
         
-        let cameraState = navigationMapView.mapView.cameraState
-        let cameraOption = CameraOptions(center: cameraState.center, padding: cameraState.padding, zoom: 5, bearing: cameraState.bearing, pitch: cameraState.pitch)
-        navigationMapView.mapView.camera.ease(to: cameraOption, duration: 0.1, curve: .linear)
-        
-        expectation(description: "Zoom set up") {
-            self.navigationMapView.mapView.cameraState.zoom == 5
-        }
-        waitForExpectations(timeout: 2, handler: nil)
         navigationMapView.travelAlongRouteLine(to: coordinate)
         
         XCTAssertTrue(navigationMapView.fractionTraveled == 0.0, "Failed to avoid updating route line when the distance is smaller than 1 pixel.")
@@ -135,15 +139,8 @@ class VanishingRouteLineTests: TestCase {
         navigationMapView.routeLineTracksTraversal = true
         navigationMapView.show([route], legIndex: 0)
         navigationMapView.updateUpcomingRoutePointIndex(routeProgress: routeProgress)
+        setUpCameraZoom(at: 16.0)
         
-        let cameraState = navigationMapView.mapView.cameraState
-        let cameraOption = CameraOptions(center: cameraState.center, padding: cameraState.padding, zoom: 16, bearing: cameraState.bearing, pitch: cameraState.pitch)
-        navigationMapView.mapView.camera.ease(to: cameraOption, duration: 0.1, curve: .linear)
-        
-        expectation(description: "Zoom set up") {
-            self.navigationMapView.mapView.cameraState.zoom == 16
-        }
-        waitForExpectations(timeout: 2, handler: nil)
         navigationMapView.travelAlongRouteLine(to: coordinate)
         XCTAssertEqual(navigationMapView.fractionTraveled, 0.32407694496826034, "Failed to update route line when routeLineTracksTraversal enabled.")
         
@@ -164,6 +161,19 @@ class VanishingRouteLineTests: TestCase {
         } catch {
             XCTFail(error.localizedDescription)
         }
+    }
+    
+    func testRouteLineGradientWithCombinedColor() {
+        let route = getRoute()
+        
+        navigationMapView.trafficModerateColor = navigationMapView.trafficUnknownColor
+        navigationMapView.routes = [route]
+        navigationMapView.routeLineTracksTraversal = true
+        navigationMapView.show([route], legIndex: 0)
+        
+        let expectedGradientStops = [0.0 : navigationMapView.trafficUnknownColor]
+        XCTAssertEqual(expectedGradientStops, navigationMapView.currentLineGradientStops, "Failed to combine the same color of congestion sgement.")
+        
     }
     
 }

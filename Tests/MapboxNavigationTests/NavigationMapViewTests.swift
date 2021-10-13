@@ -317,13 +317,11 @@ class NavigationMapViewTests: TestCase {
         var fractionTraveled = 0.0
         var routeLineGradient = navigationMapView.routeLineGradient(congestionFeatures, fractionTraveled: fractionTraveled, isMain: true, isSoft: false)
         XCTAssertEqual(routeLineGradient[0.0], navigationMapView.trafficLowColor)
-        XCTAssertEqual(routeLineGradient[1.0], navigationMapView.trafficLowColor)
         
         fractionTraveled = 0.3
         var fractionTraveledNextDown = Double(CGFloat(fractionTraveled).nextDown)
         routeLineGradient = navigationMapView.routeLineGradient(congestionFeatures, fractionTraveled: fractionTraveled, isMain: true, isSoft: false)
         XCTAssertEqual(routeLineGradient[0.0], navigationMapView.traversedRouteColor)
-        XCTAssertEqual(routeLineGradient[1.0], navigationMapView.trafficLowColor)
         XCTAssertEqual(routeLineGradient[fractionTraveled], navigationMapView.trafficLowColor)
         XCTAssertEqual(routeLineGradient[fractionTraveledNextDown], navigationMapView.traversedRouteColor)
         
@@ -331,7 +329,6 @@ class NavigationMapViewTests: TestCase {
         fractionTraveledNextDown = Double(CGFloat(fractionTraveled).nextDown)
         routeLineGradient = navigationMapView.routeLineGradient(congestionFeatures, fractionTraveled: fractionTraveled, isMain: true, isSoft: true)
         XCTAssertEqual(routeLineGradient[0.0], navigationMapView.traversedRouteColor)
-        XCTAssertEqual(routeLineGradient[1.0], navigationMapView.trafficLowColor)
         XCTAssertEqual(routeLineGradient[fractionTraveled], navigationMapView.trafficLowColor)
         XCTAssertEqual(routeLineGradient[fractionTraveledNextDown], navigationMapView.traversedRouteColor)
     }
@@ -341,9 +338,7 @@ class NavigationMapViewTests: TestCase {
         var congestions = route.congestionFeatures()
         var fractionTraveled = 0.0
         var lineGradient = navigationMapView.routeLineGradient(congestions, fractionTraveled: fractionTraveled, isMain: true, isSoft: true)
-        XCTAssertEqual(2, lineGradient.keys.count)
         XCTAssertEqual(lineGradient[0.0], navigationMapView.trafficUnknownColor)
-        XCTAssertEqual(lineGradient[1.0], navigationMapView.trafficUnknownColor)
         
         lineGradient = [
             0.0: navigationMapView.trafficSevereColor,
